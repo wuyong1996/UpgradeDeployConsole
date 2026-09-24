@@ -458,7 +458,7 @@ class Host:
         source_hash = hashlib.sha256((request['repository'] + '\n' + request['branch']).encode()).hexdigest()
         deployment_fingerprint = hashlib.sha256(json.dumps({'service': service, 'database': self.target.get('database') if side == 'back' else None}, sort_keys=True).encode()).hexdigest()
         if not force and remote == previous.get('commit') and source_hash == previous.get('source') and deployment_fingerprint == previous.get('deploymentFingerprint'):
-            return {'ok': True, 'message': '当前服务已是最新提交', 'commit': remote}
+            return {'ok': True, 'message': '当前服务已是最新提交', 'commit': remote, 'noChanges': True}
         repo = Path(self.target['repositoryPath'])
         workspace = repo / (side + '-' + request['operationId'])
         require(not workspace.exists(), '操作工作目录已存在，请使用新的操作重试')

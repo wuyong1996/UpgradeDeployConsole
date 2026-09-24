@@ -127,6 +127,82 @@ public sealed class ConsoleTests : IDisposable
         finally { await worker.StopAsync(CancellationToken.None); }
         var actual = await GetAsync(project.Id);
         Assert.Equal(Now.AddSeconds(3599), actual.Front.NextRunAt); Assert.Equal(Now.AddHours(20), actual.Back.NextRunAt); Assert.Single(host.Requests); Assert.Equal("front", host.Requests[0].Side);
+        Assert.Equal("succeeded", Assert.Single(await store.ReadAsync(s => s.Jobs)).State);
+        Assert.Single(await store.ReadAsync(s => s.Audit.Where(x => x.Action == "job.succeeded").ToArray()));
+    }
+    [Theory]
+    [InlineData("front")]
+    [InlineData("back")]
+    public async Task RepeatedUnchangedScheduledChecksOnlyUpdatePlan(string side)
+    {
+        var project = await AddAsync();
+        var previous = JobService.Create(project, "deploy", side, Now.AddDays(-1));
+        previous.Trigger = "schedule"; previous.State = "succeeded";
+        await store.WriteAsync(s => { s.Jobs.Add(previous); return true; });
+        var auditCount = await store.ReadAsync(s => s.Audit.Count);
+        var host = new FakeHost { NoChanges = true };
+        using var worker = new DeploymentWorker(store, targets, host, clock, NullLogger<DeploymentWorker>.Instance);
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                await store.WriteAsync(s =>
+                {
+                    var plan = ProjectService.Find(s, project.Id).Plan(side);
+                    plan.AutoDeploy = true; plan.PeriodSeconds = 60; plan.NextRunAt = Now.AddSeconds(-1); plan.LastCheckAt = null;
+                    return true;
+                });
+                await UntilAsync(async () => (await GetAsync(project.Id)).Plan(side).LastCheckAt == Now);
+                var plan = (await GetAsync(project.Id)).Plan(side);
+                Assert.Equal(Now.AddSeconds(59), plan.NextRunAt);
+                Assert.Equal(new string('a', 40), plan.LastCommit); Assert.Equal("test", plan.LastResult); Assert.True(plan.AutoDeploy);
+                Assert.Equal(previous.Id, Assert.Single(await store.ReadAsync(s => s.Jobs)).Id);
+                Assert.Equal(auditCount, await store.ReadAsync(s => s.Audit.Count));
+            }
+        }
+        finally { await worker.StopAsync(CancellationToken.None); }
+        Assert.Equal(2, host.Requests.Count);
+        Assert.All(host.Requests, request => { Assert.Equal("deploy", request.Action); Assert.Equal(side, request.Side); });
+        Assert.Null((await GetAsync(project.Id)).Plan(side == "front" ? "back" : "front").LastCheckAt);
+        var persisted = JsonSerializer.Deserialize<ConsoleState>(File.ReadAllText(Path.Combine(directory, "state.json")), StateStore.Json)!;
+        Assert.Equal(previous.Id, Assert.Single(persisted.Jobs).Id);
+        Assert.Equal(auditCount, persisted.Audit.Count);
+    }
+    [Theory]
+    [InlineData("manual", false)]
+    [InlineData("save", false)]
+    [InlineData("schedule", true)]
+    public async Task UnchangedResultStillPreservesManualWorkflowAndFailureRecords(string trigger, bool failed)
+    {
+        var project = await AddAsync();
+        var job = JobService.Create(project, "deploy", "front", Now); job.Trigger = trigger;
+        await store.WriteAsync(s =>
+        {
+            s.Jobs.Add(job);
+            var plan = ProjectService.Find(s, project.Id).Front;
+            plan.AutoDeploy = true; plan.NextRunAt = Now.AddHours(1); plan.LastCommit = new string('b', 40);
+            return true;
+        });
+        var host = new FakeHost { NoChanges = true, FailedSide = failed ? "front" : null };
+        using var worker = new DeploymentWorker(store, targets, host, clock, NullLogger<DeploymentWorker>.Instance);
+        await worker.StartAsync(CancellationToken.None);
+        try { await UntilAsync(async () => (await GetAsync(project.Id)).Front.LastCheckAt == Now); }
+        finally { await worker.StopAsync(CancellationToken.None); }
+        var record = Assert.Single(await store.ReadAsync(s => s.Jobs));
+        Assert.Equal(job.Id, record.Id); Assert.Equal(failed ? "failed" : "succeeded", record.State); Assert.NotEmpty(record.Events);
+        Assert.Single(await store.ReadAsync(s => s.Audit.Where(x => x.Action == "job." + record.State).ToArray()));
+        if (failed)
+        {
+            var plan = (await GetAsync(project.Id)).Front;
+            Assert.Equal(Now.AddMinutes(10), plan.NextRunAt); Assert.Equal(new string('b', 40), plan.LastCommit);
+        }
+    }
+    [Fact]
+    public void HostResultsWithoutNoChangesFlagAreNotAssumedToBeIdleChecks()
+    {
+        var result = JsonSerializer.Deserialize<HostResult>("{\"ok\":true,\"message\":\"当前服务已是最新提交\"}", StateStore.Json)!;
+        Assert.False(result.NoChanges);
     }
     [Fact]
     public async Task StartAfterStopDoesNotReenableAutoPublish()
@@ -411,7 +487,8 @@ public sealed class ConsoleTests : IDisposable
     private sealed class FakeHost : IHostControl
     {
         public string? FailedSide { get; init; }
+        public bool NoChanges { get; init; }
         public List<HostRequest> Requests { get; } = [];
-        public Task<HostResult> RunAsync(HostRequest request, Func<string, Task>? progress = null) { Requests.Add(request); return Task.FromResult(new HostResult { Ok = request.Side != FailedSide, Message = "test", Commit = new string('a', 40) }); }
+        public Task<HostResult> RunAsync(HostRequest request, Func<string, Task>? progress = null) { Requests.Add(request); return Task.FromResult(new HostResult { Ok = request.Side != FailedSide, NoChanges = NoChanges, Message = "test", Commit = new string('a', 40) }); }
     }
 }

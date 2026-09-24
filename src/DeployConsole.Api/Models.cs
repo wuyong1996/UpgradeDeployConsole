@@ -98,6 +98,7 @@ public sealed record RemoteBranch(string Name, string Commit);
 public sealed class HostResult
 {
     public bool Ok { get; set; }
+    public bool NoChanges { get; set; }
     public string Message { get; set; } = "";
     public string? Commit { get; set; }
     public ServiceStatus? Front { get; set; }

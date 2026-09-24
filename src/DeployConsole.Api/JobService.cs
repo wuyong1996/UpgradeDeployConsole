@@ -217,7 +217,11 @@ public sealed class DeploymentWorker(StateStore store, TargetCatalog targets, IH
                 if (result.Ok && job.Action == "start" && !state.Jobs.Any(x => x.ProjectId == job.ProjectId && x.State == "queued" && (x.Action == "stop-all" || x.Action == "stop" && x.Side == job.Side)))
                 { plan.Stopped = false; actual.ShutdownRequested = false; actual.Version++; }
             }
-            state.Audit.Add(new(clock.GetUtcNow(), "job." + current.State, job.ProjectId, job.Trigger, $"{job.Id}; {job.Action}; {job.Side}"));
+            // Keep the latest check status, but do not retain idle polling as deployment history.
+            if (job.Trigger == "schedule" && job.Action == "deploy" && result.Ok && result.NoChanges)
+                state.Jobs.Remove(current);
+            else
+                state.Audit.Add(new(clock.GetUtcNow(), "job." + current.State, job.ProjectId, job.Trigger, $"{job.Id}; {job.Action}; {job.Side}"));
             return true;
         });
     }

@@ -245,15 +245,33 @@ class AdapterTests(unittest.TestCase):
 
     def test_unchanged_commit_does_not_build_or_restart(self):
         control = host.Host(self.target)
-        request = self.request('deploy', 'front')
-        source = host.hashlib.sha256((request['repository'] + '\nmain').encode()).hexdigest()
-        fingerprint = host.hashlib.sha256(json.dumps({'service': self.target['front'], 'database': None}, sort_keys=True).encode()).hexdigest()
-        control.state['front'] = {'commit': 'a' * 40, 'source': source, 'deploymentFingerprint': fingerprint}
-        with patch.object(control, 'branches', return_value=[{'name': 'main', 'commit': 'a' * 40}]), patch.object(control, 'sandbox') as build, patch.object(control, 'service') as service:
-            result = control.deploy(request)
-        self.assertTrue(result['ok'])
-        build.assert_not_called()
-        service.assert_not_called()
+        for side in host.SIDES:
+            with self.subTest(side=side):
+                request = self.request('deploy', side)
+                source = host.hashlib.sha256((request['repository'] + '\nmain').encode()).hexdigest()
+                fingerprint = host.hashlib.sha256(json.dumps({'service': self.target[side], 'database': self.target['database'] if side == 'back' else None}, sort_keys=True).encode()).hexdigest()
+                control.state[side] = {'commit': 'a' * 40, 'source': source, 'deploymentFingerprint': fingerprint}
+                with patch.object(control, 'branches', return_value=[{'name': 'main', 'commit': 'a' * 40}]), patch.object(control, 'git') as clone, patch.object(control, 'sandbox') as build, patch.object(control, 'service') as service:
+                    result = control.deploy(request)
+                self.assertEqual(result, {'ok': True, 'noChanges': True, 'message': '当前服务已是最新提交', 'commit': 'a' * 40})
+                clone.assert_not_called()
+                build.assert_not_called()
+                service.assert_not_called()
+
+    def test_new_commit_or_source_is_not_reported_as_unchanged(self):
+        for side in host.SIDES:
+            for change in ('commit', 'source'):
+                with self.subTest(side=side, change=change):
+                    control = host.Host(self.target)
+                    request = self.request('deploy', side)
+                    source = host.hashlib.sha256((request['repository'] + '\nmain').encode()).hexdigest()
+                    fingerprint = host.hashlib.sha256(json.dumps({'service': self.target[side], 'database': self.target['database'] if side == 'back' else None}, sort_keys=True).encode()).hexdigest()
+                    control.state[side] = {'commit': 'a' * 40, 'source': source, 'deploymentFingerprint': fingerprint}
+                    control.state[side][change] = 'b' * 40
+                    with patch.object(control, 'branches', return_value=[{'name': 'main', 'commit': 'a' * 40}]), patch.object(control, 'git', side_effect=host.Rejected('clone reached')) as clone:
+                        with self.assertRaisesRegex(host.Rejected, 'clone reached'):
+                            control.deploy(request)
+                    clone.assert_called_once()
 
     def test_changed_binding_rebuilds_even_when_commit_is_unchanged(self):
         control = host.Host(self.target)

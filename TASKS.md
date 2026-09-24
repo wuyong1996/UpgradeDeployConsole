@@ -1,8 +1,10 @@
 # 服务器更新管理任务记录
 
-当前任务：最新部署包与旧交付自动清理（待人工确认）。最新包已构建并核验，38项旧交付已清理，只保留最新3文件；打包8项与升级6项测试通过。后续统一使用Package-DeployConsole.ps1，详见[打包说明](docs/deploy-console-package.md)。独立拆分验证见[迁移验证](docs/standalone-migration.md)。
+当前任务：自动发布无变化时不累积记录（待编译及服务器验证）。主机明确返回noChanges时，调度器更新最近检查状态后移除本次自动发布任务，不追加成功审计；实际发布、失败及手动操作保留，既有历史不清理。已补充.NET调度回归，执行`python -m unittest discover -s tests/scripts -p "test_deploy_console.py" -q`通过28项适配器测试，`git diff --check`通过。按既有编译约定未执行.NET测试/构建、前端构建、打包或服务器升级；需同时更新API与host.py后生效。
 
 下列历史记录沿用拆分前状态与命令；不表示已执行服务器生产操作。
+
+> 2026-09-24 OPS-01 最新部署包与旧交付自动清理（待人工确认）：最新包已构建并核验，38项旧交付已清理，只保留最新3文件；打包8项与升级6项测试通过。后续统一使用Package-DeployConsole.ps1，详见[打包说明](docs/deploy-console-package.md)。独立拆分验证见[迁移验证](docs/standalone-migration.md)。
 
 > 2026-09-24 OPS-01 独立工程拆分（待人工确认）：按用户要求将面板源码、测试、部署文件、文档、交付包及本地状态迁移到D:/UpgradeDeployConsole；补齐独立构建配置并验证无原工程运行依赖，保留培训业务的接入描述/迁移实现。
 
