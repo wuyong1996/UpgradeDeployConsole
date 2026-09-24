@@ -1,0 +1,4 @@
+{
+  "front": { "directory": "src/frontend", "output": "dist" },
+  "back": null
+}

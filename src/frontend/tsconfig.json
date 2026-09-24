@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2023", "module": "ESNext", "moduleResolution": "bundler", "strict": true,
+    "jsx": "preserve", "resolveJsonModule": true, "isolatedModules": true, "skipLibCheck": true,
+    "verbatimModuleSyntax": true, "noEmit": true, "lib": ["ES2023", "DOM", "DOM.Iterable"], "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue"]
+}

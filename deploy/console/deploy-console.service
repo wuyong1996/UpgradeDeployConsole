@@ -1,0 +1,23 @@
+[Unit]
+Description=Project deployment console
+After=network.target
+
+[Service]
+Type=exec
+User=deploy-console
+Group=deploy-console
+WorkingDirectory=/opt/deploy-console/current
+ExecStart=/usr/bin/dotnet /opt/deploy-console/current/DeployConsole.Api.dll --urls http://127.0.0.1:5088
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=Console__DataDirectory=/var/lib/deploy-console
+Environment=Console__PasswordFile=/etc/deploy-console/password.txt
+Environment=Console__TargetsDirectory=/etc/deploy-console/targets
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=3300
+UMask=0077
+# sudo must retain its privilege transition. Do not use NoNewPrivileges here.
+# Privileged build isolation is enforced by the root-owned host adapter.
+
+[Install]
+WantedBy=multi-user.target

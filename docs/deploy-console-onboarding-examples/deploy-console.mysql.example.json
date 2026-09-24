@@ -1,0 +1,10 @@
+{
+  "front": { "directory": "src/frontend", "output": "dist" },
+  "back": { "project": "src/backend/Project.Api/Project.Api.csproj", "healthPath": "/health/ready" },
+  "database": {
+    "kind": "mysql",
+    "connectionStringName": "AppDb",
+    "planArguments": ["--deployment-database-plan"],
+    "applyArguments": ["--deployment-database-apply"]
+  }
+}

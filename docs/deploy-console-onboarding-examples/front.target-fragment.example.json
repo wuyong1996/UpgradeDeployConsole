@@ -1,0 +1,14 @@
+{
+  "front": {
+    "kind": "nginx",
+    "port": 18081,
+    "current": "/www/wwwroot/project/current",
+    "healthPath": "/",
+    "independentDeploy": true,
+    "build": {
+      "directory": "src/frontend",
+      "commands": [["/usr/bin/npm", "ci"], ["/usr/bin/npm", "run", "build"]],
+      "output": "dist"
+    }
+  }
+}

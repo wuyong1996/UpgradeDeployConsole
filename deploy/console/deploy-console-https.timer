@@ -1,0 +1,10 @@
+[Unit]
+Description=Check existing ACME certificate files every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=deploy-console-https.service
+
+[Install]
+WantedBy=timers.target

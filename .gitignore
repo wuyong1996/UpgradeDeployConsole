@@ -1,0 +1,36 @@
+# Generated .NET / frontend output
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+/src/DeployConsole.Api/wwwroot/
+TestResults/
+coverage/
+
+# Local state, credentials, logs and delivery archives
+.local/
+deployment-artifacts/
+backups/
+secrets/
+.certs/
+*.log
+*.key
+*.pem
+*.pfx
+*.p12
+password.txt
+.env
+.env.*
+!.env.example
+**/appsettings.*.local.json
+
+# Python and IDEs
+__pycache__/
+*.py[cod]
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+Thumbs.db
+.DS_Store

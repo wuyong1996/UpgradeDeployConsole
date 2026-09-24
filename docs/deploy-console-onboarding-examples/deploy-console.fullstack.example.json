@@ -1,0 +1,7 @@
+{
+  "front": { "directory": "src/frontend", "output": "dist" },
+  "back": {
+    "project": "src/backend/Project.Api/Project.Api.csproj",
+    "healthPath": "/health/ready"
+  }
+}

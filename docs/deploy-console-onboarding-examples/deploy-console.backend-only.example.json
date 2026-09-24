@@ -1,0 +1,7 @@
+{
+  "front": null,
+  "back": {
+    "project": "src/backend/Project.Api/Project.Api.csproj",
+    "healthPath": "/health/ready"
+  }
+}

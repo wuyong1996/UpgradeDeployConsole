@@ -1,0 +1,4 @@
+{
+  "enabled": true,
+  "allowedGitHosts": ["github.com", "gitlab.com", "gitee.com"]
+}

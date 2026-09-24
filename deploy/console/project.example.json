@@ -1,0 +1,19 @@
+{
+  "slug": "project",
+  "buildUser": "deploy-build-project",
+  "allowedGitHosts": ["github.com"],
+  "repositoryPath": "/opt/project/repository",
+  "front": {
+    "kind": "nginx", "unit": null, "port": 8080,
+    "current": "/www/wwwroot/project/current", "healthPath": "/",
+    "independentDeploy": true,
+    "build": { "directory": "src/frontend", "commands": [["/usr/bin/npm", "ci"], ["/usr/bin/npm", "run", "build"]], "output": "dist" }
+  },
+  "back": {
+    "kind": "systemd", "unit": "project-api.service", "port": 5080,
+    "portEnvironment": "ASPNETCORE_URLS", "current": "/opt/project/current",
+    "healthPath": "/health/ready", "independentDeploy": true,
+    "build": { "directory": ".", "commands": [["/usr/bin/dotnet", "publish", "src/backend/Project.Api/Project.Api.csproj", "--configuration", "Release", "--output", "publish"]], "output": "publish" }
+  },
+  "database": { "kind": "systemd", "identity": "mysql.service", "managed": true, "host": "127.0.0.1", "port": 3306 }
+}
